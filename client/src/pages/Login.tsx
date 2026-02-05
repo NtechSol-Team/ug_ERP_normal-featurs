@@ -66,10 +66,10 @@ export default function Login() {
                   <FormItem>
                     <FormLabel>Username</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="owner@example.com" 
-                        {...field} 
-                        className="h-11 bg-white" 
+                      <Input
+                        placeholder="Enter your username"
+                        {...field}
+                        className="h-11 bg-white focus:ring-primary/20"
                         autoComplete="username"
                       />
                     </FormControl>
@@ -84,10 +84,10 @@ export default function Login() {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="password" 
-                        placeholder="••••••••" 
-                        {...field} 
+                      <Input
+                        type="password"
+                        placeholder="••••••••"
+                        {...field}
                         className="h-11 bg-white"
                         autoComplete="current-password"
                       />
@@ -96,9 +96,9 @@ export default function Login() {
                   </FormItem>
                 )}
               />
-              <Button 
-                type="submit" 
-                className="w-full h-11 text-base" 
+              <Button
+                type="submit"
+                className="w-full h-11 text-base font-semibold shadow-sm"
                 disabled={loginMutation.isPending}
               >
                 {loginMutation.isPending ? (
@@ -113,16 +113,15 @@ export default function Login() {
             </form>
           </Form>
 
-          <div className="mt-6 p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground space-y-1">
-            <p className="font-medium text-foreground mb-2">Demo Credentials:</p>
-            <div className="flex justify-between">
-              <span>Owner:</span>
-              <span className="font-mono">owner@example.com / owner123</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Employee:</span>
-              <span className="font-mono">staff@example.com / staff123</span>
-            </div>
+          <div className="mt-8 pt-6 border-t border-border/40 text-center">
+            <a
+              href="https://nakranitechno.onrender.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-muted-foreground font-medium grayscale opacity-60 hover:opacity-100 transition-opacity hover:text-primary"
+            >
+              &copy; {new Date().getFullYear()} Nakrani Techno & Solution LLP. All rights reserved.
+            </a>
           </div>
         </CardContent>
       </Card>
