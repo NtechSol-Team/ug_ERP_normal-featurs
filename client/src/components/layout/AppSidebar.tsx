@@ -43,9 +43,6 @@ export function AppSidebar() {
     { name: "Reports", href: "/reports", icon: BarChart },
   ];
 
-  const ownerNavigation = [
-    { name: "Settings", href: "/settings", icon: Settings },
-  ];
 
   return (
     <Sidebar className="border-r border-border/40">
@@ -78,29 +75,6 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {isOwner && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Management</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {ownerNavigation.map((item) => (
-                  <SidebarMenuItem key={item.name}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={location === item.href}
-                      className="h-10 text-base"
-                    >
-                      <Link href={item.href}>
-                        <item.icon className="mr-2 h-4 w-4" />
-                        <span>{item.name}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-border/40 p-4">

@@ -88,9 +88,6 @@ export default function CreateSale({ id }: { id?: number }) {
   const { data: customers } = useCustomers();
   const { data: existingSale, isLoading: isLoadingSale, error: saleError } = useSale(id);
 
-  if (saleError) {
-    console.error(`Error loading sale:`, saleError);
-  }
   const { mutate: createSale, isPending: isCreating } = useCreateSale();
   const { mutate: updateSale, isPending: isUpdating } = useUpdateSale();
   const isPending = isCreating || isUpdating;

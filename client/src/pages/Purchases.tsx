@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { usePurchases, useDeletePurchase, useAuditLogs } from "@/hooks/use-erp";
 import { useAuth } from "@/hooks/use-auth";
-import { Plus, Search, ShoppingBag, MoreVertical, Edit2, Trash2, History } from "lucide-react";
+import { Plus, Search, ShoppingBag, MoreVertical, Edit2, Trash2, History, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -33,7 +33,12 @@ import {
 import { ViewBillDialog, AuditLogDetails } from "@/components/TransactionDialogs";
 
 export default function Purchases() {
-  const { data: purchases, isLoading } = usePurchases();
+  const [page, setPage] = useState(1);
+  const [limit] = useState(50);
+  const { data: paginatedPurchases, isLoading } = usePurchases(page, limit);
+  const purchases = paginatedPurchases?.data || [];
+  const totalPages = Math.ceil((paginatedPurchases?.total || 0) / limit);
+
   const { user } = useAuth();
   const isOwner = user?.role === "owner";
   const { mutate: deletePurchase } = useDeletePurchase();
@@ -175,6 +180,35 @@ export default function Purchases() {
             )}
           </TableBody>
         </Table>
+      </div>
+
+      <div className="flex items-center justify-between px-2">
+        <div className="text-sm text-muted-foreground">
+          Showing {purchases.length} of {paginatedPurchases?.total || 0} purchases
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1 || isLoading}
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Previous
+          </Button>
+          <div className="text-sm font-medium">
+            Page {page} of {totalPages || 1}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages || isLoading}
+          >
+            <ChevronRight className="h-4 w-4" />
+            Next
+          </Button>
+        </div>
       </div>
     </div>
   );

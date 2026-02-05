@@ -17,7 +17,6 @@ export class TallyService {
 
             return generateTallyXML(officialSales, officialPurchases);
         } catch (error) {
-            console.error('Error in TallyService.generateExport:', error);
             throw new Error('Failed to generate Tally export');
         }
     }

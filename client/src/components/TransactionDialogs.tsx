@@ -18,90 +18,97 @@ import { useProducts } from "@/hooks/use-erp";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
-export function ViewInvoiceDialog({ saleData, children }: { saleData: any, children: React.ReactNode }) {
-    const { sale, customer, items } = saleData;
 
+export function ViewInvoiceDialog({ saleData, children }: { saleData: any, children: React.ReactNode }) {
     return (
         <Dialog>
             <DialogTrigger asChild>
                 {children}
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                    <DialogTitle className="text-2xl flex justify-between items-center">
-                        <span>Invoice: {sale.invoiceNumber}</span>
-                        <Badge variant="outline" className="uppercase">{sale.type}</Badge>
-                    </DialogTitle>
-                </DialogHeader>
-
-                <div className="space-y-6 py-4">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                            <p className="text-muted-foreground">Customer</p>
-                            {customer?.name ? (
-                                <p className="font-semibold text-base">{customer.name}</p>
-                            ) : (
-                                <div className="flex flex-col leading-tight">
-                                    <p className="font-semibold text-base">Walk-in</p>
-                                    <p className="text-[10px] text-muted-foreground uppercase opacity-70">Customer</p>
-                                </div>
-                            )}
-                            {customer?.phone && <p>{customer.phone}</p>}
-                            {customer?.address && <p>{customer.address}</p>}
-                        </div>
-                        <div className="text-right">
-                            <p className="text-muted-foreground">Date</p>
-                            <p className="font-semibold">{new Date(sale.date).toLocaleDateString()}</p>
-                            <p className="text-muted-foreground mt-2">Status</p>
-                            <Badge variant={sale.status === 'completed' ? 'default' : 'secondary'}>
-                                {sale.status}
-                            </Badge>
-                        </div>
-                    </div>
-
-                    <div className="border rounded-lg">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Product</TableHead>
-                                    <TableHead className="text-right">Qty</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {items?.map((item: any, idx: number) => (
-                                    <TableRow key={idx}>
-                                        <TableCell className="font-medium">{item.product}</TableCell>
-                                        <TableCell className="text-right">{item.quantity}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </div>
-
-                    <div className="space-y-2 border-t pt-4">
-                        <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Subtotal</span>
-                            <span>UGX {Number(sale.subtotal).toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">VAT (Inclusive/Calculated)</span>
-                            <span className="text-blue-600">UGX {Number(sale.vatAmount).toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between text-lg font-bold border-t pt-2 mt-2 font-mono">
-                            <span>Total Amount</span>
-                            <span>UGX {Number(sale.totalAmount).toLocaleString()}</span>
-                        </div>
-                    </div>
-
-                    {sale.notes && (
-                        <div className="bg-muted/30 p-3 rounded-lg text-sm italic">
-                            <p className="font-semibold not-italic mb-1">Notes:</p>
-                            {sale.notes}
-                        </div>
-                    )}
-                </div>
-            </DialogContent>
+            <ViewInvoiceDialogContent saleData={saleData} />
         </Dialog>
+    );
+}
+
+export function ViewInvoiceDialogContent({ saleData }: { saleData: any }) {
+    const { sale, customer, items } = saleData;
+
+    return (
+        <DialogContent className="max-w-2xl">
+            <DialogHeader>
+                <DialogTitle className="text-2xl flex justify-between items-center">
+                    <span>Invoice: {sale.invoiceNumber}</span>
+                    <Badge variant="outline" className="uppercase">{sale.type}</Badge>
+                </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-6 py-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <p className="text-muted-foreground">Customer</p>
+                        {customer?.name ? (
+                            <p className="font-semibold text-base">{customer.name}</p>
+                        ) : (
+                            <div className="flex flex-col leading-tight">
+                                <p className="font-semibold text-base">Walk-in</p>
+                                <p className="text-[10px] text-muted-foreground uppercase opacity-70">Customer</p>
+                            </div>
+                        )}
+                        {customer?.phone && <p>{customer.phone}</p>}
+                        {customer?.address && <p>{customer.address}</p>}
+                    </div>
+                    <div className="text-right">
+                        <p className="text-muted-foreground">Date</p>
+                        <p className="font-semibold">{new Date(sale.date).toLocaleDateString()}</p>
+                        <p className="text-muted-foreground mt-2">Status</p>
+                        <Badge variant={sale.status === 'completed' ? 'default' : 'secondary'}>
+                            {sale.status}
+                        </Badge>
+                    </div>
+                </div>
+
+                <div className="border rounded-lg">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Product</TableHead>
+                                <TableHead className="text-right">Qty</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {items?.map((item: any, idx: number) => (
+                                <TableRow key={idx}>
+                                    <TableCell className="font-medium">{item.product}</TableCell>
+                                    <TableCell className="text-right">{item.quantity}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+
+                <div className="space-y-2 border-t pt-4">
+                    <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Subtotal</span>
+                        <span>UGX {Number(sale.subtotal).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">VAT (Inclusive/Calculated)</span>
+                        <span className="text-blue-600">UGX {Number(sale.vatAmount).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-lg font-bold border-t pt-2 mt-2 font-mono">
+                        <span>Total Amount</span>
+                        <span>UGX {Number(sale.totalAmount).toLocaleString()}</span>
+                    </div>
+                </div>
+
+                {sale.notes && (
+                    <div className="bg-muted/30 p-3 rounded-lg text-sm italic">
+                        <p className="font-semibold not-italic mb-1">Notes:</p>
+                        {sale.notes}
+                    </div>
+                )}
+            </div>
+        </DialogContent>
     );
 }
 

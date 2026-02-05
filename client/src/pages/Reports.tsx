@@ -62,8 +62,11 @@ export default function Reports() {
     const isOwner = user?.role === "owner";
 
     // Data Hooks
-    const { data: sales } = useSales();
-    const { data: purchases } = usePurchases();
+    const { data: salesData } = useSales(1, 10000); // Fetch all for reports
+    const { data: purchasesData } = usePurchases(1, 10000); // Fetch all for reports
+
+    const sales = salesData?.data || [];
+    const purchases = purchasesData?.data || [];
     const { data: expenses } = useExpenses();
     const { data: customers } = useCustomers();
     const { data: suppliers } = useSuppliers();

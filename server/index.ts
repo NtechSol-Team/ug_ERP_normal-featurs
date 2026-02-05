@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import compression from "compression";
 
 const app = express();
 const httpServer = createServer(app);
@@ -12,6 +13,7 @@ declare module "http" {
   }
 }
 
+app.use(compression());
 app.use(
   express.json({
     verify: (req, _res, buf) => {
@@ -23,6 +25,8 @@ app.use(
 app.use(express.urlencoded({ extended: false }));
 
 export function log(message: string, source = "express") {
+  if (process.env.NODE_ENV === "production" && source === "express") return;
+
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
@@ -51,6 +55,14 @@ app.use((req, res, next) => {
       log(logLine);
     }
   });
+
+  // Add caching for static assets
+  if (path.match(/\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$/)) {
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+  } else if (path.startsWith("/api")) {
+    // Basic API caching if needed, or simply ensure no-cache for dynamic data
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  }
 
   next();
 });
@@ -97,3 +109,4 @@ app.use((req, res, next) => {
     },
   );
 })();
+// restart trigger

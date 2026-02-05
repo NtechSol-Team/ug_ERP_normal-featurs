@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useSales, useDeleteSale, useAuditLogs } from "@/hooks/use-erp";
 import { useAuth } from "@/hooks/use-auth";
-import { Plus, Search, FileText, MoreVertical, Edit2, Trash2, History } from "lucide-react";
+import { Plus, Search, FileText, MoreVertical, Edit2, Trash2, History, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -30,15 +30,22 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ViewInvoiceDialog, AuditLogDetails } from "@/components/TransactionDialogs";
+import { ViewInvoiceDialogContent, AuditLogDetails } from "@/components/TransactionDialogs";
 
 export default function Sales() {
-  const { data: sales, isLoading } = useSales();
+  const [page, setPage] = useState(1);
+  const [limit] = useState(50);
+  const { data: paginatedSales, isLoading } = useSales(page, limit);
+  // Support both new paginated structure and potential fallback
+  const sales = paginatedSales?.data || [];
+  const totalPages = Math.ceil((paginatedSales?.total || 0) / limit);
+
   const { user } = useAuth();
   const isOwner = user?.role === "owner";
   const { mutate: deleteSale } = useDeleteSale();
   const { toast } = useToast();
   const [historySale, setHistorySale] = useState<any>(null);
+  const [viewSale, setViewSale] = useState<any>(null);
   const [showGeneralHistory, setShowGeneralHistory] = useState(false);
   const [, setLocation] = useLocation();
 
@@ -51,6 +58,10 @@ export default function Sales() {
             onClose={() => setHistorySale(null)}
           />
         )}
+      </Dialog>
+
+      <Dialog open={!!viewSale} onOpenChange={(open) => !open && setViewSale(null)}>
+        {viewSale && <ViewInvoiceDialogContent saleData={viewSale} />}
       </Dialog>
 
       <Dialog open={showGeneralHistory} onOpenChange={setShowGeneralHistory}>
@@ -108,80 +119,108 @@ export default function Sales() {
                   </div>
                 </TableCell>
               </TableRow>
-            ) : (
-              sales?.map((item: any) => (
-                <ViewInvoiceDialog key={item.sale.id} saleData={item}>
-                  <TableRow
-                    className={cn(
-                      "cursor-pointer hover:bg-muted/50 transition-colors",
-                      item.sale.type === "internal" && isOwner && "bg-blue-50/50 hover:bg-blue-50"
-                    )}
-                  >
-                    <TableCell className="font-mono font-medium">{item.sale.invoiceNumber}</TableCell>
-                    <TableCell>{new Date(item.sale.date).toLocaleDateString()}</TableCell>
-                    <TableCell>
-                      {item.customer?.name || (
-                        <div className="flex flex-col leading-tight">
-                          <span>Walk-in</span>
-                          <span className="text-[10px] text-muted-foreground uppercase opacity-70">Customer</span>
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="uppercase text-[10px]">
-                        {item.sale.type}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right font-bold font-mono text-base">
-                      {Number(item.sale.totalAmount).toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant={item.sale.status === 'completed' ? 'default' : 'secondary'}>
-                        {item.sale.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="icon">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={(e) => {
-                            e.stopPropagation();
-                            setLocation(`/sales/edit/${item.sale.id}`);
-                          }}>
-                            <Edit2 className="mr-2 h-4 w-4" /> Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => {
-                            e.stopPropagation();
-                            setHistorySale(item.sale);
-                          }}>
-                            <History className="mr-2 h-4 w-4" /> History
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (confirm("Are you sure you want to delete this sale? This will revert stock levels.")) {
-                                deleteSale(item.sale.id, {
-                                  onSuccess: () => toast({ title: "Sale deleted successfully" })
-                                });
-                              }
-                            }}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                </ViewInvoiceDialog>
-              ))
-            )}
+            ) : sales?.map((item: any) => (
+              <TableRow
+                key={item.sale.id}
+                onClick={() => setViewSale(item)}
+                className={cn(
+                  "cursor-pointer hover:bg-muted/50 transition-colors",
+                  item.sale.type === "internal" && isOwner && "bg-blue-50/50 hover:bg-blue-50"
+                )}
+              >
+                <TableCell className="font-mono font-medium">{item.sale.invoiceNumber}</TableCell>
+                <TableCell>{new Date(item.sale.date).toLocaleDateString()}</TableCell>
+                <TableCell>
+                  {item.customer?.name || (
+                    <div className="flex flex-col leading-tight">
+                      <span>Walk-in</span>
+                      <span className="text-[10px] text-muted-foreground uppercase opacity-70">Customer</span>
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline" className="uppercase text-[10px]">
+                    {item.sale.type}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right font-bold font-mono text-base">
+                  {Number(item.sale.totalAmount).toLocaleString()}
+                </TableCell>
+                <TableCell className="text-center">
+                  <Badge variant={item.sale.status === 'completed' ? 'default' : 'secondary'}>
+                    {item.sale.status}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                      <Button variant="ghost" size="icon">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation();
+                        setLocation(`/sales/edit/${item.sale.id}`);
+                      }}>
+                        <Edit2 className="mr-2 h-4 w-4" /> Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation();
+                        setHistorySale(item.sale);
+                      }}>
+                        <History className="mr-2 h-4 w-4" /> History
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm("Are you sure you want to delete this sale? This will revert stock levels.")) {
+                            deleteSale(item.sale.id, {
+                              onSuccess: () => toast({ title: "Sale deleted successfully" })
+                            });
+                          }
+                        }}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            ))
+            }
           </TableBody>
         </Table>
+      </div>
+
+      <div className="flex items-center justify-between px-2">
+        <div className="text-sm text-muted-foreground">
+          Showing {sales.length} of {paginatedSales?.total || 0} sales
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1 || isLoading}
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Previous
+          </Button>
+          <div className="text-sm font-medium">
+            Page {page} of {totalPages || 1}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages || isLoading}
+          >
+            <ChevronRight className="h-4 w-4" />
+            Next
+          </Button>
+        </div>
       </div>
     </div>
   );

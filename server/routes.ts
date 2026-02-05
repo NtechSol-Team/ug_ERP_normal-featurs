@@ -132,8 +132,10 @@ export async function registerRoutes(
   // Sales
   app.get(api.sales.list.path, requireAuth, async (req, res) => {
     const role = (req.user as any).role;
-    const sales = await storage.getSales(role);
-    res.json(sales);
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 50;
+    const result = await storage.getSales(role, page, limit);
+    res.json(result);
   });
 
   app.get(api.sales.get.path, requireAuth, async (req, res) => {
@@ -147,7 +149,6 @@ export async function registerRoutes(
       const sale = await storage.createSale(req.body, (req.user as any).id);
       res.status(201).json(sale);
     } catch (e) {
-      console.error(e);
       res.status(400).json({ message: "Failed to create sale" });
     }
   });
@@ -163,8 +164,10 @@ export async function registerRoutes(
   // Purchases
   app.get(api.purchases.list.path, requireAuth, async (req, res) => {
     const role = (req.user as any).role;
-    const purchases = await storage.getPurchases(role);
-    res.json(purchases);
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 50;
+    const result = await storage.getPurchases(role, page, limit);
+    res.json(result);
   });
 
   app.get(api.purchases.get.path, requireAuth, async (req, res) => {
@@ -178,7 +181,6 @@ export async function registerRoutes(
       const purchase = await storage.createPurchase(req.body, (req.user as any).id);
       res.status(201).json(purchase);
     } catch (e) {
-      console.error(e);
       res.status(400).json({ message: "Failed to create purchase" });
     }
   });
@@ -278,7 +280,5 @@ async function seedDatabase() {
       phone: "0752123456",
       tinNumber: "1000987654"
     });
-
-    console.log("Database seeded successfully!");
   }
 }

@@ -159,13 +159,13 @@ export function useCreateSupplier() {
 }
 
 // --- Sales ---
-export function useSales() {
-  return useQuery({
-    queryKey: [api.sales.list.path],
+export function useSales(page: number = 1, limit: number = 50) {
+  return useQuery<{ data: any[], total: number, validPage: number }>({
+    queryKey: [api.sales.list.path, page, limit],
     queryFn: async () => {
-      const res = await fetch(api.sales.list.path, { credentials: "include" });
+      const res = await fetch(`${api.sales.list.path}?page=${page}&limit=${limit}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch sales");
-      return api.sales.list.responses[200].parse(await res.json());
+      return await res.json();
     },
   });
 }
@@ -249,13 +249,13 @@ export function useDeleteSale() {
 }
 
 // --- Purchases ---
-export function usePurchases() {
-  return useQuery({
-    queryKey: [api.purchases.list.path],
+export function usePurchases(page: number = 1, limit: number = 50) {
+  return useQuery<{ data: any[], total: number, validPage: number }>({
+    queryKey: [api.purchases.list.path, page, limit],
     queryFn: async () => {
-      const res = await fetch(api.purchases.list.path, { credentials: "include" });
+      const res = await fetch(`${api.purchases.list.path}?page=${page}&limit=${limit}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch purchases");
-      return api.purchases.list.responses[200].parse(await res.json());
+      return await res.json();
     },
   });
 }

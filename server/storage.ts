@@ -29,13 +29,13 @@ export interface IStorage {
   createSupplier(supplier: Partial<Supplier>): Promise<Supplier>;
 
   // Transactions
-  getSales(role: string): Promise<any[]>;
+  getSales(role: string, page?: number, limit?: number): Promise<{ data: any[], total: number, validPage: number }>;
   getSale(id: number): Promise<any | undefined>;
   createSale(sale: CreateSaleRequest, userId: number): Promise<Sale>;
   updateSale(id: number, data: CreateSaleRequest, userId: number): Promise<Sale>;
   deleteSale(id: number, userId: number): Promise<void>;
 
-  getPurchases(role: string): Promise<any[]>;
+  getPurchases(role: string, page?: number, limit?: number): Promise<{ data: any[], total: number, validPage: number }>;
   getPurchase(id: number): Promise<any | undefined>;
   createPurchase(purchase: CreatePurchaseRequest, userId: number): Promise<Purchase>;
   updatePurchase(id: number, data: CreatePurchaseRequest, userId: number): Promise<Purchase>;
@@ -73,7 +73,7 @@ export class DatabaseStorage implements IStorage {
 
   // Product methods
   async getProducts(): Promise<Product[]> {
-    return await db.select().from(products).orderBy(products.name);
+    return await db.select().from(products).where(sql`${products.isActive} = true`).orderBy(products.name);
   }
 
   async getProduct(id: number): Promise<Product | undefined> {
@@ -117,7 +117,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Sales
-  async getSales(role: string): Promise<any[]> {
+  async getSales(role: string, page: number = 1, limit: number = 50): Promise<{ data: any[], total: number, validPage: number }> {
+    const offset = (page - 1) * limit;
+
+    // 1. Get total count
+    const [countResult] = await db.select({ count: sql<number>`count(distinct ${sales.id})` })
+      .from(sales)
+      .where(role !== 'owner' ? eq(sales.type, 'official') : undefined);
+    const total = Number(countResult?.count || 0);
+
+    // 2. Get paginated data
     const query = db.select({
       sale: sales,
       customer: customers,
@@ -128,13 +137,16 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(saleItems, eq(sales.id, saleItems.saleId))
       .leftJoin(products, eq(saleItems.productId, products.id))
       .groupBy(sales.id, customers.id)
-      .orderBy(desc(sales.date));
+      .orderBy(desc(sales.date))
+      .limit(limit)
+      .offset(offset);
 
     if (role !== 'owner') {
       query.where(eq(sales.type, 'official'));
     }
 
-    return await query;
+    const data = await query;
+    return { data, total, validPage: page };
   }
 
   async getSale(id: number): Promise<any | undefined> {
@@ -183,20 +195,26 @@ export class DatabaseStorage implements IStorage {
         totalAmount: String(data.totalAmount || 0),
       } as any).returning();
 
-      for (const item of data.items) {
-        await tx.insert(saleItems).values({
-          ...item,
-          saleId: sale.id,
-          unitPrice: String(item.unitPrice || 0),
-          vatRate: String(item.vatRate || 0.18),
-          totalPrice: String(Number(item.quantity) * Number(item.unitPrice || 0))
-        } as any);
+      // 2. Create Sale Items (Batch Insert)
+      if (data.items.length > 0) {
+        await tx.insert(saleItems).values(
+          data.items.map(item => ({
+            ...item,
+            saleId: sale.id,
+            unitPrice: String(item.unitPrice || 0),
+            vatRate: String(item.vatRate || 0.18),
+            totalPrice: String(Number(item.quantity) * Number(item.unitPrice || 0))
+          })) as any
+        );
+      }
 
-        // Decrease stock
+      // 3. Update Stock (Parallel if possible, but sequential for safety)
+      for (const item of data.items) {
         await tx.update(products)
           .set({ stockQuantity: sql`${products.stockQuantity} - ${item.quantity}` })
           .where(eq(products.id, item.productId));
       }
+
       await this.createAuditLog(tx, 'sale', sale.id, 'created', { after: { items: data.items } }, userId);
       this.invalidateCache();
       return sale;
@@ -269,20 +287,32 @@ export class DatabaseStorage implements IStorage {
     });
   }
   // Purchases
-  async getPurchases(role: string): Promise<any[]> {
+  async getPurchases(role: string, page: number = 1, limit: number = 50): Promise<{ data: any[], total: number, validPage: number }> {
+    const offset = (page - 1) * limit;
+
+    // 1. Get total count
+    const [countResult] = await db.select({ count: sql<number>`count(*)` })
+      .from(purchases)
+      .where(role !== 'owner' ? eq(purchases.type, 'official') : undefined);
+    const total = Number(countResult?.count || 0);
+
+    // 2. Get paginated data
     const query = db.select({
       purchase: purchases,
       supplier: suppliers
     })
       .from(purchases)
       .leftJoin(suppliers, eq(purchases.supplierId, suppliers.id))
-      .orderBy(desc(purchases.date));
+      .orderBy(desc(purchases.date))
+      .limit(limit)
+      .offset(offset);
 
     if (role !== 'owner') {
       query.where(eq(purchases.type, 'official'));
     }
 
-    return await query;
+    const data = await query;
+    return { data, total, validPage: page };
   }
 
   async getPurchase(id: number): Promise<any | undefined> {
@@ -330,17 +360,21 @@ export class DatabaseStorage implements IStorage {
         totalAmount: String(data.totalAmount || 0),
       } as any).returning();
 
-      // 2. Create Purchase Items & Update Stock
-      for (const item of data.items) {
-        await tx.insert(purchaseItems).values({
-          ...item,
-          purchaseId: purchase.id,
-          unitCost: String(item.unitCost || 0),
-          vatRate: String(item.vatRate || 0.18),
-          totalCost: String(Number(item.quantity) * Number(item.unitCost || 0))
-        } as any);
+      // 2. Create Purchase Items (Batch Insert)
+      if (data.items.length > 0) {
+        await tx.insert(purchaseItems).values(
+          data.items.map(item => ({
+            ...item,
+            purchaseId: purchase.id,
+            unitCost: String(item.unitCost || 0),
+            vatRate: String(item.vatRate || 0.18),
+            totalCost: String(Number(item.quantity) * Number(item.unitCost || 0))
+          })) as any
+        );
+      }
 
-        // Increase stock
+      // 3. Update Stock
+      for (const item of data.items) {
         await tx.update(products)
           .set({ stockQuantity: sql`${products.stockQuantity} + ${item.quantity}` })
           .where(eq(products.id, item.productId));
