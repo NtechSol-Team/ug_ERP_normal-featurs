@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, numeric, date, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, numeric, date, varchar, jsonb } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -79,6 +79,7 @@ export const saleItems = pgTable("sale_items", {
   productId: integer("product_id").references(() => products.id).notNull(),
   quantity: integer("quantity").notNull(),
   unitPrice: numeric("unit_price").notNull(),
+  vatRate: numeric("vat_rate").default("0.18"),
   totalPrice: numeric("total_price").notNull(),
 });
 
@@ -104,6 +105,7 @@ export const purchaseItems = pgTable("purchase_items", {
   productId: integer("product_id").references(() => products.id).notNull(),
   quantity: integer("quantity").notNull(),
   unitCost: numeric("unit_cost").notNull(),
+  vatRate: numeric("vat_rate").default("0.18"),
   totalCost: numeric("total_cost").notNull(),
 });
 
@@ -118,6 +120,17 @@ export const expenses = pgTable("expenses", {
   type: text("type", { enum: transactionTypeEnum }).notNull().default("official"),
   receiptNumber: text("receipt_number"),
   createdBy: integer("created_by").references(() => users.id),
+});
+
+// Audit Logs
+export const auditLogs = pgTable("audit_logs", {
+  id: serial("id").primaryKey(),
+  entityType: text("entity_type").notNull(), // 'sale', 'purchase', 'expense', 'product'
+  entityId: integer("entity_id").notNull(),
+  action: text("action").notNull(), // 'created', 'updated', 'deleted', 'stock_added'
+  changes: jsonb("changes"),
+  userId: integer("user_id").references(() => users.id),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
 });
 
 // === RELATIONS ===
@@ -167,6 +180,13 @@ export const purchaseItemsRelations = relations(purchaseItems, ({ one }) => ({
   }),
 }));
 
+export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
+  user: one(users, {
+    fields: [auditLogs.userId],
+    references: [users.id],
+  }),
+}));
+
 // === BASE SCHEMAS ===
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 export const insertProductSchema = createInsertSchema(products).omit({ id: true });
@@ -177,9 +197,11 @@ export const insertSaleItemSchema = createInsertSchema(saleItems).omit({ id: tru
 export const insertPurchaseSchema = createInsertSchema(purchases).omit({ id: true, date: true });
 export const insertPurchaseItemSchema = createInsertSchema(purchaseItems).omit({ id: true });
 export const insertExpenseSchema = createInsertSchema(expenses).omit({ id: true, date: true });
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true, timestamp: true });
 
 // === EXPLICIT API CONTRACT TYPES ===
 export type User = typeof users.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Product = typeof products.$inferSelect;
 export type Customer = typeof customers.$inferSelect;
 export type Supplier = typeof suppliers.$inferSelect;
@@ -188,6 +210,11 @@ export type SaleItem = typeof saleItems.$inferSelect;
 export type Purchase = typeof purchases.$inferSelect;
 export type PurchaseItem = typeof purchaseItems.$inferSelect;
 export type Expense = typeof expenses.$inferSelect;
+export type InsertProduct = z.infer<typeof insertProductSchema>;
+export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
+export type InsertSupplier = z.infer<typeof insertSupplierSchema>;
+export type InsertExpense = z.infer<typeof insertExpenseSchema>;
+export type AuditLog = typeof auditLogs.$inferSelect;
 
 // Request Types
 export type LoginRequest = { username: string; password: string };
@@ -202,14 +229,31 @@ export interface DashboardStats {
   totalPurchases: number;
   totalExpenses: number;
   netProfit: number;
+
+  // Breakdowns
+  officialSales: number;
+  internalSales: number;
+  officialPurchases: number;
+  internalPurchases: number;
+  officialExpenses: number;
+  internalExpenses: number;
+
+  vatPayable: number;
+  receivables: number;
+  payables: number;
   recentTransactions: any[];
   lowStockItems: Product[];
+  trendData: { name: string; sales: number; purchases: number }[];
 }
 
-export type CreateSaleRequest = z.infer<typeof insertSaleSchema> & {
+export type CreateSaleRequest = Omit<z.infer<typeof insertSaleSchema>, "customerId"> & {
+  customerId?: number | string;
+  date?: string | Date;
   items: Omit<z.infer<typeof insertSaleItemSchema>, "saleId">[];
 };
 
-export type CreatePurchaseRequest = z.infer<typeof insertPurchaseSchema> & {
+export type CreatePurchaseRequest = Omit<z.infer<typeof insertPurchaseSchema>, "supplierId"> & {
+  supplierId?: number | string;
+  date?: string | Date;
   items: Omit<z.infer<typeof insertPurchaseItemSchema>, "purchaseId">[];
 };

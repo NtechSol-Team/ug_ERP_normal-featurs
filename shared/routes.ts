@@ -1,11 +1,11 @@
 import { z } from 'zod';
-import { 
-  insertUserSchema, 
-  insertProductSchema, 
-  insertCustomerSchema, 
-  insertSupplierSchema, 
-  insertSaleSchema, 
-  insertPurchaseSchema, 
+import {
+  insertUserSchema,
+  insertProductSchema,
+  insertCustomerSchema,
+  insertSupplierSchema,
+  insertSaleSchema,
+  insertPurchaseSchema,
   insertExpenseSchema,
   users,
   products,
@@ -100,6 +100,22 @@ export const api = {
         404: errorSchemas.notFound,
       },
     },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/products/:id',
+      responses: {
+        200: z.void(),
+        404: errorSchemas.notFound,
+      },
+    },
+    addStock: {
+      method: 'POST' as const,
+      path: '/api/products/:id/stock',
+      input: z.object({ amount: z.number() }),
+      responses: {
+        200: z.custom<typeof products.$inferSelect>(),
+      },
+    },
   },
   customers: {
     list: {
@@ -143,6 +159,14 @@ export const api = {
         200: z.array(z.any()), // Complex type with items
       },
     },
+    get: {
+      method: 'GET' as const,
+      path: '/api/sales/:id',
+      responses: {
+        200: z.any(),
+        404: errorSchemas.notFound,
+      },
+    },
     create: {
       method: 'POST' as const,
       path: '/api/sales',
@@ -158,6 +182,29 @@ export const api = {
         400: errorSchemas.validation,
       },
     },
+    update: {
+      method: 'PUT' as const,
+      path: '/api/sales/:id',
+      input: insertSaleSchema.partial().extend({
+        items: z.array(z.object({
+          productId: z.number(),
+          quantity: z.number(),
+          unitPrice: z.number().optional(),
+        })).optional()
+      }),
+      responses: {
+        200: z.custom<typeof sales.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/sales/:id',
+      responses: {
+        200: z.void(),
+        404: errorSchemas.notFound,
+      },
+    },
   },
   purchases: {
     list: {
@@ -165,6 +212,14 @@ export const api = {
       path: '/api/purchases',
       responses: {
         200: z.array(z.any()),
+      },
+    },
+    get: {
+      method: 'GET' as const,
+      path: '/api/purchases/:id',
+      responses: {
+        200: z.any(),
+        404: errorSchemas.notFound,
       },
     },
     create: {
@@ -179,6 +234,29 @@ export const api = {
       }),
       responses: {
         201: z.custom<typeof purchases.$inferSelect>(),
+      },
+    },
+    update: {
+      method: 'PUT' as const,
+      path: '/api/purchases/:id',
+      input: insertPurchaseSchema.partial().extend({
+        items: z.array(z.object({
+          productId: z.number(),
+          quantity: z.number(),
+          unitCost: z.number().optional(),
+        })).optional()
+      }),
+      responses: {
+        200: z.custom<typeof purchases.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/purchases/:id',
+      responses: {
+        200: z.void(),
+        404: errorSchemas.notFound,
       },
     },
   },
@@ -198,6 +276,23 @@ export const api = {
         201: z.custom<typeof expenses.$inferSelect>(),
       },
     },
+    update: {
+      method: 'PUT' as const,
+      path: '/api/expenses/:id',
+      input: insertExpenseSchema.partial(),
+      responses: {
+        200: z.custom<typeof expenses.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/expenses/:id',
+      responses: {
+        200: z.void(),
+        404: errorSchemas.notFound,
+      },
+    },
   },
   dashboard: {
     stats: {
@@ -205,6 +300,15 @@ export const api = {
       path: '/api/stats',
       responses: {
         200: z.custom<DashboardStats>(),
+      },
+    },
+  },
+  audit: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/audit-logs',
+      responses: {
+        200: z.array(z.any()),
       },
     },
   },

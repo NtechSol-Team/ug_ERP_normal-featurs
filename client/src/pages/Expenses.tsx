@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { insertExpenseSchema } from "@shared/schema";
-import { Plus, Search, Receipt } from "lucide-react";
+import { Plus, Search, Receipt, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -39,14 +39,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+
+// Define a form-specific schema to handle number inputs
+const expenseFormSchema = insertExpenseSchema.extend({
+  amount: z.coerce.number().min(0, "Amount must be positive"),
+});
+
+type ExpenseFormValues = z.infer<typeof expenseFormSchema>;
 
 export default function Expenses() {
   const { data: expenses, isLoading } = useExpenses();
   const { user } = useAuth();
   const isOwner = user?.role === "owner";
   const [isOpen, setIsOpen] = useState(false);
-  
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -93,20 +110,22 @@ export default function Expenses() {
               </TableRow>
             ) : (
               expenses?.map((expense) => (
-                <TableRow 
+                <TableRow
                   key={expense.id}
                   className={cn(
-                    expense.type === "internal" && isOwner && "bg-blue-50/50 hover:bg-blue-50"
+                    expense.type === "internal" ? "bg-orange-50/50 hover:bg-orange-50" : ""
                   )}
                 >
-                  <TableCell>{new Date(expense.date).toLocaleDateString()}</TableCell>
+                  <TableCell>
+                    {expense.date ? new Date(expense.date).toLocaleDateString() : "-"}
+                  </TableCell>
                   <TableCell>
                     <Badge variant="secondary">{expense.category}</Badge>
                   </TableCell>
                   <TableCell>{expense.description}</TableCell>
                   <TableCell>{expense.payee || "-"}</TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="uppercase text-[10px]">
+                    <Badge variant={expense.type === "internal" ? "destructive" : "outline"} className="uppercase text-[10px]">
                       {expense.type}
                     </Badge>
                   </TableCell>
@@ -128,8 +147,11 @@ function ExpenseForm({ onSuccess }: { onSuccess: () => void }) {
   const { user } = useAuth();
   const isOwner = user?.role === "owner";
 
-  const form = useForm<z.infer<typeof insertExpenseSchema>>({
-    resolver: zodResolver(insertExpenseSchema),
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [pendingValues, setPendingValues] = useState<any>(null);
+
+  const form = useForm<ExpenseFormValues>({
+    resolver: zodResolver(expenseFormSchema),
     defaultValues: {
       description: "",
       category: "Utilities",
@@ -140,110 +162,161 @@ function ExpenseForm({ onSuccess }: { onSuccess: () => void }) {
     },
   });
 
+  function handleSubmit(values: ExpenseFormValues) {
+    // Convert numeric amount to string for API
+    const payload = {
+      ...values,
+      amount: values.amount.toString()
+    };
+
+    if (isOwner && values.type === "internal") {
+      setPendingValues(payload);
+      setShowConfirm(true);
+    } else {
+      mutate(payload as any, { onSuccess });
+    }
+  }
+
+  function executeCreate() {
+    if (pendingValues) {
+      mutate(pendingValues as any, { onSuccess });
+    }
+  }
+
   return (
-    <DialogContent className="sm:max-w-[500px]">
-      <DialogHeader>
-        <DialogTitle>Record Expense</DialogTitle>
-      </DialogHeader>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit((d) => mutate(d as any, { onSuccess }))} className="space-y-4">
-          <FormField
-            control={form.control}
-            name="category"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Category</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Category" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="Utilities">Utilities</SelectItem>
-                    <SelectItem value="Rent">Rent</SelectItem>
-                    <SelectItem value="Salaries">Salaries</SelectItem>
-                    <SelectItem value="Transport">Transport</SelectItem>
-                    <SelectItem value="Maintenance">Maintenance</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="description"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Description</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g. Electricity Bill for March" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <div className="grid grid-cols-2 gap-4">
+    <>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Record Expense</DialogTitle>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             <FormField
               control={form.control}
-              name="amount"
+              name="category"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Amount (UGX)</FormLabel>
+                  <FormLabel>Category</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Category" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="Utilities">Utilities</SelectItem>
+                      <SelectItem value="Rent">Rent</SelectItem>
+                      <SelectItem value="Salaries">Salaries</SelectItem>
+                      <SelectItem value="Transport">Transport</SelectItem>
+                      <SelectItem value="Maintenance">Maintenance</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description</FormLabel>
                   <FormControl>
-                    <Input type="number" min="0" {...field} />
+                    <Input placeholder="e.g. Electricity Bill for March" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            {isOwner && (
+            <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="type"
+                name="amount"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="official">Official</SelectItem>
-                        <SelectItem value="internal">Internal</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <FormLabel>Amount (UGX)</FormLabel>
+                    <FormControl>
+                      <Input type="number" min="0" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            )}
-          </div>
-          <FormField
-            control={form.control}
-            name="payee"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Payee (Optional)</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g. Umeme" {...field} value={field.value || ''} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={onSuccess}>Cancel</Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? "Recording..." : "Save Expense"}
-            </Button>
-          </div>
-        </form>
-      </Form>
-    </DialogContent>
+              {isOwner && (
+                <FormField
+                  control={form.control}
+                  name="type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Type</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="official">Official</SelectItem>
+                          <SelectItem value="internal">Internal</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+            </div>
+            <FormField
+              control={form.control}
+              name="payee"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Payee (Optional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g. Umeme" {...field} value={field.value || ''} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="flex justify-end gap-2 pt-4">
+              <Button type="button" variant="outline" onClick={onSuccess}>Cancel</Button>
+              <Button
+                type="submit"
+                disabled={isPending}
+                className={form.watch("type") === "internal" ? "bg-orange-600 hover:bg-orange-700" : ""}
+              >
+                {isPending ? "Recording..." : "Save Expense"}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </DialogContent>
+
+      <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center text-orange-600">
+              <AlertTriangle className="mr-2 h-5 w-5" />
+              Confirm Internal Expense
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This expense will be recorded as <strong>Internal</strong>.
+              It will be excluded from official accounting.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={executeCreate}
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

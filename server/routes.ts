@@ -57,7 +57,7 @@ export async function registerRoutes(
   await seedDatabase();
 
   // === API ROUTES ===
-  
+
   // Auth
   app.post(api.auth.login.path, passport.authenticate("local"), (req, res) => {
     res.json(req.user);
@@ -93,12 +93,20 @@ export async function registerRoutes(
   });
 
   app.post(api.products.create.path, requireAuth, async (req, res) => {
-    const product = await storage.createProduct(req.body);
+    const product = await storage.createProduct(req.body, (req.user as any).id);
     res.status(201).json(product);
   });
 
   app.put(api.products.update.path, requireAuth, async (req, res) => {
-    const product = await storage.updateProduct(Number(req.params.id), req.body);
+    const product = await storage.updateProduct(Number(req.params.id), req.body, (req.user as any).id);
+    res.json(product);
+  });
+  app.delete(api.products.delete.path, requireAuth, async (req, res) => {
+    await storage.deleteProduct(Number(req.params.id), (req.user as any).id);
+    res.sendStatus(200);
+  });
+  app.post(api.products.addStock.path, requireAuth, async (req, res) => {
+    const product = await storage.addStock(Number(req.params.id), req.body.amount, (req.user as any).id);
     res.json(product);
   });
 
@@ -127,7 +135,13 @@ export async function registerRoutes(
     const sales = await storage.getSales(role);
     res.json(sales);
   });
-  
+
+  app.get(api.sales.get.path, requireAuth, async (req, res) => {
+    const sale = await storage.getSale(Number(req.params.id));
+    if (!sale) return res.sendStatus(404);
+    res.json(sale);
+  });
+
   app.post(api.sales.create.path, requireAuth, async (req, res) => {
     try {
       const sale = await storage.createSale(req.body, (req.user as any).id);
@@ -137,12 +151,26 @@ export async function registerRoutes(
       res.status(400).json({ message: "Failed to create sale" });
     }
   });
+  app.put(api.sales.update.path, requireAuth, async (req, res) => {
+    const sale = await storage.updateSale(Number(req.params.id), req.body, (req.user as any).id);
+    res.json(sale);
+  });
+  app.delete(api.sales.delete.path, requireAuth, async (req, res) => {
+    await storage.deleteSale(Number(req.params.id), (req.user as any).id);
+    res.sendStatus(200);
+  });
 
   // Purchases
   app.get(api.purchases.list.path, requireAuth, async (req, res) => {
     const role = (req.user as any).role;
     const purchases = await storage.getPurchases(role);
     res.json(purchases);
+  });
+
+  app.get(api.purchases.get.path, requireAuth, async (req, res) => {
+    const purchase = await storage.getPurchase(Number(req.params.id));
+    if (!purchase) return res.sendStatus(404);
+    res.json(purchase);
   });
 
   app.post(api.purchases.create.path, requireAuth, async (req, res) => {
@@ -153,6 +181,14 @@ export async function registerRoutes(
       console.error(e);
       res.status(400).json({ message: "Failed to create purchase" });
     }
+  });
+  app.put(api.purchases.update.path, requireAuth, async (req, res) => {
+    const purchase = await storage.updatePurchase(Number(req.params.id), req.body, (req.user as any).id);
+    res.json(purchase);
+  });
+  app.delete(api.purchases.delete.path, requireAuth, async (req, res) => {
+    await storage.deletePurchase(Number(req.params.id), (req.user as any).id);
+    res.sendStatus(200);
   });
 
   // Expenses
@@ -166,12 +202,27 @@ export async function registerRoutes(
     const expense = await storage.createExpense(req.body, (req.user as any).id);
     res.status(201).json(expense);
   });
+  app.put(api.expenses.update.path, requireAuth, async (req, res) => {
+    const expense = await storage.updateExpense(Number(req.params.id), req.body, (req.user as any).id);
+    res.json(expense);
+  });
+  app.delete(api.expenses.delete.path, requireAuth, async (req, res) => {
+    await storage.deleteExpense(Number(req.params.id), (req.user as any).id);
+    res.sendStatus(200);
+  });
 
   // Stats
   app.get(api.dashboard.stats.path, requireAuth, async (req, res) => {
     const role = (req.user as any).role;
     const stats = await storage.getDashboardStats(role);
     res.json(stats);
+  });
+
+  // Audit Logs
+  app.get(api.audit.list.path, requireAuth, async (req, res) => {
+    const { entityType, entityId } = req.query;
+    const logs = await storage.getAuditLogs(entityType as string, entityId ? Number(entityId) : undefined);
+    res.json(logs);
   });
 
   return httpServer;
@@ -181,13 +232,13 @@ async function seedDatabase() {
   const existingUser = await storage.getUserByUsername("owner@example.com");
   if (!existingUser) {
     // 1. Create Users
-    await storage.createUser({
+    const owner = await storage.createUser({
       username: "owner@example.com",
       password: "owner123",
       name: "John Mukasa",
       role: "owner"
     });
-    
+
     await storage.createUser({
       username: "staff@example.com",
       password: "staff123",
@@ -203,7 +254,7 @@ async function seedDatabase() {
       costPrice: "28000",
       stockQuantity: 500,
       category: "Construction",
-    });
+    }, owner.id);
 
     const p2 = await storage.createProduct({
       name: "Iron Sheets (Gauge 30)",
@@ -212,7 +263,7 @@ async function seedDatabase() {
       costPrice: "38000",
       stockQuantity: 200,
       category: "Construction",
-    });
+    }, owner.id);
 
     await storage.createCustomer({
       name: "Kampala Builders Ltd",
@@ -220,7 +271,7 @@ async function seedDatabase() {
       phone: "0772123456",
       tinNumber: "1000123456"
     });
-    
+
     await storage.createSupplier({
       name: "Tororo Cement Factory",
       email: "sales@tororo.co.ug",

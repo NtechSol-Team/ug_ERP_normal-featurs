@@ -15,6 +15,7 @@ import Inventory from "@/pages/Inventory";
 import Customers from "@/pages/Customers";
 import Suppliers from "@/pages/Suppliers";
 import Expenses from "@/pages/Expenses";
+import Reports from "@/pages/Reports";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -38,14 +39,25 @@ function Router() {
         {/* Protected Routes */}
         <Route path="/" component={Dashboard} />
         <Route path="/sales" component={Sales} />
-        <Route path="/sales/new" component={CreateSale} />
+        <Route path="/sales/new">
+          {() => <CreateSale />}
+        </Route>
+        <Route path="/sales/edit/:id">
+          {(params) => <CreateSale id={Number(params.id)} />}
+        </Route>
         <Route path="/purchases" component={Purchases} />
-        <Route path="/purchases/new" component={CreatePurchase} />
+        <Route path="/purchases/new">
+          {() => <CreatePurchase />}
+        </Route>
+        <Route path="/purchases/edit/:id">
+          {(params) => <CreatePurchase id={Number(params.id)} />}
+        </Route>
         <Route path="/inventory" component={Inventory} />
         <Route path="/customers" component={Customers} />
         <Route path="/suppliers" component={Suppliers} />
         <Route path="/expenses" component={Expenses} />
-        
+        <Route path="/reports" component={Reports} />
+
         {/* Fallback */}
         <Route component={NotFound} />
       </Switch>

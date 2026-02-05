@@ -1,12 +1,12 @@
 import { Link, useLocation } from "wouter";
-import { 
-  LayoutDashboard, 
-  ShoppingCart, 
-  Package, 
-  Users, 
-  Truck, 
-  Receipt, 
-  BarChart, 
+import {
+  LayoutDashboard,
+  ShoppingCart,
+  Package,
+  Users,
+  Truck,
+  Receipt,
+  BarChart,
   Settings,
   LogOut,
   ShoppingBag
@@ -40,6 +40,7 @@ export function AppSidebar() {
     { name: "Expenses", href: "/expenses", icon: Receipt },
     { name: "Customers", href: "/customers", icon: Users },
     { name: "Suppliers", href: "/suppliers", icon: Truck },
+    { name: "Reports", href: "/reports", icon: BarChart },
   ];
 
   const ownerNavigation = [
@@ -61,8 +62,8 @@ export function AppSidebar() {
             <SidebarMenu>
               {navigation.map((item) => (
                 <SidebarMenuItem key={item.name}>
-                  <SidebarMenuButton 
-                    asChild 
+                  <SidebarMenuButton
+                    asChild
                     isActive={location === item.href}
                     className="h-10 text-base"
                   >
@@ -84,8 +85,8 @@ export function AppSidebar() {
               <SidebarMenu>
                 {ownerNavigation.map((item) => (
                   <SidebarMenuItem key={item.name}>
-                    <SidebarMenuButton 
-                      asChild 
+                    <SidebarMenuButton
+                      asChild
                       isActive={location === item.href}
                       className="h-10 text-base"
                     >
@@ -113,8 +114,8 @@ export function AppSidebar() {
               <span className="text-xs text-muted-foreground capitalize">{user?.role}</span>
             </div>
           </div>
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50"
             onClick={() => logoutMutation.mutate()}
           >
